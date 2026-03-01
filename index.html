@@ -46,6 +46,11 @@
       line-height: 1;
       min-width: 3ch;
       text-align: center;
+      transition: color 0.2s;
+    }
+
+    .count.pending {
+      opacity: 0.6;
     }
 
     .btn {
@@ -112,14 +117,8 @@
     .reset-btn:active { background: #333; color: #fff; }
 
     @media (min-width: 600px) {
-      body {
-        flex-direction: row;
-        gap: 32px;
-        padding: 24px;
-      }
-      .counter-card {
-        width: 260px;
-      }
+      body { flex-direction: row; gap: 32px; padding: 24px; }
+      .counter-card { width: 260px; }
       .counter-card:hover { transform: translateY(-4px); }
       .reset-btn:hover { background: #333; color: #fff; }
     }
@@ -132,13 +131,13 @@
   <div class="counter-card card-1">
     <div class="word">Kurba</div>
     <div class="count" id="count1">—</div>
-    <button class="btn" id="btn1" onclick="increment('kurba')" disabled>+ Increment</button>
+    <button class="btn" id="btn1" onclick="increment('kurba', 'count1')" disabled>+ Increment</button>
   </div>
 
   <div class="counter-card card-2">
     <div class="word">Pizda</div>
     <div class="count" id="count2">—</div>
-    <button class="btn" id="btn2" onclick="increment('pizda')" disabled>+ Increment</button>
+    <button class="btn" id="btn2" onclick="increment('pizda', 'count2')" disabled>+ Increment</button>
   </div>
 
   <button class="reset-btn" id="resetBtn" onclick="resetAll()" disabled>Reset all</button>
@@ -165,6 +164,10 @@
     const btn2 = document.getElementById('btn2');
     const resetBtn = document.getElementById('resetBtn');
 
+    // Local optimistic values
+    const local = { kurba: 0, pizda: 0 };
+    const elMap = { kurba: document.getElementById('count1'), pizda: document.getElementById('count2') };
+
     function setReady() {
       statusEl.textContent = '🟢 Live';
       statusEl.className = 'status connected';
@@ -173,33 +176,56 @@
       resetBtn.disabled = false;
     }
 
-    // Listen to kurba counter in real-time
+    // Real-time listener — only updates display if not pending
     onSnapshot(doc(db, 'counters', 'kurba'), (snap) => {
-      document.getElementById('count1').textContent = snap.exists() ? snap.data().value : 0;
+      const val = snap.exists() ? snap.data().value : 0;
+      local.kurba = val;
+      elMap.kurba.textContent = val;
+      elMap.kurba.classList.remove('pending');
       setReady();
     }, () => {
       statusEl.textContent = '🔴 Offline';
       statusEl.className = 'status error';
     });
 
-    // Listen to pizda counter in real-time
     onSnapshot(doc(db, 'counters', 'pizda'), (snap) => {
-      document.getElementById('count2').textContent = snap.exists() ? snap.data().value : 0;
+      const val = snap.exists() ? snap.data().value : 0;
+      local.pizda = val;
+      elMap.pizda.textContent = val;
+      elMap.pizda.classList.remove('pending');
       setReady();
     });
 
-    // Atomic increment to avoid race conditions with multiple users
-    window.increment = async (name) => {
-      const ref = doc(db, 'counters', name);
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(ref);
-        const current = snap.exists() ? snap.data().value : 0;
-        tx.set(ref, { value: current + 1 });
-      });
+    window.increment = async (name, elId) => {
+      const el = elMap[name];
+
+      // Optimistically update immediately
+      local[name] += 1;
+      el.textContent = local[name];
+      el.classList.add('pending');
+
+      try {
+        const ref = doc(db, 'counters', name);
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          const current = snap.exists() ? snap.data().value : 0;
+          tx.set(ref, { value: current + 1 });
+        });
+        // onSnapshot will confirm and remove 'pending'
+      } catch (e) {
+        // Revert on failure
+        local[name] -= 1;
+        el.textContent = local[name];
+        el.classList.remove('pending');
+      }
     };
 
     window.resetAll = async () => {
       if (!confirm('Reset both counters for ALL users?')) return;
+      local.kurba = 0;
+      local.pizda = 0;
+      elMap.kurba.textContent = 0;
+      elMap.pizda.textContent = 0;
       await runTransaction(db, async (tx) => {
         tx.set(doc(db, 'counters', 'kurba'), { value: 0 });
         tx.set(doc(db, 'counters', 'pizda'), { value: 0 });
