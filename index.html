@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Counter App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0f0f0f;
+      font-family: 'Segoe UI', sans-serif;
+      gap: 24px;
+      padding: 24px 16px 80px;
+    }
+
+    .counter-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 24px;
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 340px;
+      transition: transform 0.1s;
+    }
+
+    .word {
+      font-size: 1.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+
+    .count {
+      font-size: 5rem;
+      font-weight: 900;
+      line-height: 1;
+      min-width: 3ch;
+      text-align: center;
+    }
+
+    .btn {
+      padding: 18px 0;
+      width: 100%;
+      font-size: 1.2rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: transform 0.1s, filter 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+      filter: brightness(0.8);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .card-1 .word, .card-1 .count { color: #ff6b6b; }
+    .card-1 .btn { background: #ff6b6b; color: #fff; }
+
+    .card-2 .word, .card-2 .count { color: #a78bfa; }
+    .card-2 .btn { background: #a78bfa; color: #fff; }
+
+    .status {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.8rem;
+      color: #555;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .status.connected { color: #4ade80; }
+    .status.error { color: #f87171; }
+
+    .reset-btn {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 13px 36px;
+      background: #222;
+      color: #888;
+      border: 1px solid #444;
+      border-radius: 50px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: background 0.2s, color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      white-space: nowrap;
+    }
+    .reset-btn:active { background: #333; color: #fff; }
+
+    @media (min-width: 600px) {
+      body {
+        flex-direction: row;
+        gap: 32px;
+        padding: 24px;
+      }
+      .counter-card {
+        width: 260px;
+      }
+      .counter-card:hover { transform: translateY(-4px); }
+      .reset-btn:hover { background: #333; color: #fff; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="status" id="status">⏳ Connecting...</div>
+
+  <div class="counter-card card-1">
+    <div class="word">Kurba</div>
+    <div class="count" id="count1">—</div>
+    <button class="btn" id="btn1" onclick="increment('kurba')" disabled>+ Increment</button>
+  </div>
+
+  <div class="counter-card card-2">
+    <div class="word">Pizda</div>
+    <div class="count" id="count2">—</div>
+    <button class="btn" id="btn2" onclick="increment('pizda')" disabled>+ Increment</button>
+  </div>
+
+  <button class="reset-btn" id="resetBtn" onclick="resetAll()" disabled>Reset all</button>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyClTqSvaUbrAWTI_lS8t_yoKimRejBuUoY",
+      authDomain: "ambrus-efa5a.firebaseapp.com",
+      projectId: "ambrus-efa5a",
+      storageBucket: "ambrus-efa5a.firebasestorage.app",
+      messagingSenderId: "785164268474",
+      appId: "1:785164268474:web:359e551fc02259a0486383",
+      measurementId: "G-5FNVJTVHR0"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const statusEl = document.getElementById('status');
+    const btn1 = document.getElementById('btn1');
+    const btn2 = document.getElementById('btn2');
+    const resetBtn = document.getElementById('resetBtn');
+
+    function setReady() {
+      statusEl.textContent = '🟢 Live';
+      statusEl.className = 'status connected';
+      btn1.disabled = false;
+      btn2.disabled = false;
+      resetBtn.disabled = false;
+    }
+
+    // Listen to kurba counter in real-time
+    onSnapshot(doc(db, 'counters', 'kurba'), (snap) => {
+      document.getElementById('count1').textContent = snap.exists() ? snap.data().value : 0;
+      setReady();
+    }, () => {
+      statusEl.textContent = '🔴 Offline';
+      statusEl.className = 'status error';
+    });
+
+    // Listen to pizda counter in real-time
+    onSnapshot(doc(db, 'counters', 'pizda'), (snap) => {
+      document.getElementById('count2').textContent = snap.exists() ? snap.data().value : 0;
+      setReady();
+    });
+
+    // Atomic increment to avoid race conditions with multiple users
+    window.increment = async (name) => {
+      const ref = doc(db, 'counters', name);
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const current = snap.exists() ? snap.data().value : 0;
+        tx.set(ref, { value: current + 1 });
+      });
+    };
+
+    window.resetAll = async () => {
+      if (!confirm('Reset both counters for ALL users?')) return;
+      await runTransaction(db, async (tx) => {
+        tx.set(doc(db, 'counters', 'kurba'), { value: 0 });
+        tx.set(doc(db, 'counters', 'pizda'), { value: 0 });
+      });
+    };
+  </script>
+</body>
+</html>
+
