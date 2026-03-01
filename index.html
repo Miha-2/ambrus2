@@ -303,7 +303,9 @@
     const btn1      = document.getElementById('btn1');
     const btn2      = document.getElementById('btn2');
     const resetBtn  = document.getElementById('resetBtn');
-    const local     = { kurba: 0, pizda: 0 };
+    const local     = { kurba: 0, pizda: 0 };  // optimistic display value
+    const confirmed = { kurba: 0, pizda: 0 };  // last confirmed by Firestore
+    const pending   = { kurba: 0, pizda: 0 };  // in-flight increments
     const elMap     = { kurba: document.getElementById('count1'), pizda: document.getElementById('count2') };
 
     function setReady() {
@@ -353,30 +355,34 @@
       ripple.addEventListener('animationend', () => ripple.remove());
     }
 
-    onSnapshot(doc(db, 'counters', 'kurba'), (snap) => {
-      const val = snap.exists() ? snap.data().value : 0;
-      local.kurba = val;
-      elMap.kurba.textContent = val;
-      elMap.kurba.classList.remove('pending');
+    function handleSnapshot(name, val) {
+      confirmed[name] = val;
+      // Only update display if the confirmed value is ahead of what we're showing
+      // (i.e. another user incremented) OR there are no pending clicks left
+      if (pending[name] === 0 || val > local[name]) {
+        local[name] = val;
+        elMap[name].textContent = val;
+        elMap[name].classList.remove('pending');
+      }
       setReady();
+    }
+
+    onSnapshot(doc(db, 'counters', 'kurba'), (snap) => {
+      handleSnapshot('kurba', snap.exists() ? snap.data().value : 0);
     }, () => {
       statusEl.textContent = 'OFFLINE';
       statusEl.className = 'status error';
     });
 
     onSnapshot(doc(db, 'counters', 'pizda'), (snap) => {
-      const val = snap.exists() ? snap.data().value : 0;
-      local.pizda = val;
-      elMap.pizda.textContent = val;
-      elMap.pizda.classList.remove('pending');
-      setReady();
+      handleSnapshot('pizda', snap.exists() ? snap.data().value : 0);
     });
 
     window.increment = async (name, elId, cardId) => {
       const el = elMap[name];
-      const btn = name === 'kurba' ? btn1 : btn2;
 
-      // Optimistic update
+      // Optimistic update immediately
+      pending[name] += 1;
       local[name] += 1;
       el.textContent = local[name];
       el.classList.add('pending');
@@ -394,9 +400,17 @@
           tx.set(ref, { value: current + 1 });
         });
       } catch (e) {
+        // Revert only this one failed increment
         local[name] -= 1;
         el.textContent = local[name];
-        el.classList.remove('pending');
+      } finally {
+        pending[name] -= 1;
+        if (pending[name] === 0) {
+          // All done — sync to confirmed server value
+          local[name] = confirmed[name];
+          el.textContent = local[name];
+          el.classList.remove('pending');
+        }
       }
     };
 
