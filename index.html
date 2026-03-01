@@ -4,145 +4,283 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Counter App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --red: #ff3c3c;
+      --purple: #9b5de5;
+      --bg: #080808;
+      --card: #111;
+      --border: #1e1e1e;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       min-height: 100vh;
+      background: var(--bg);
+      font-family: 'DM Mono', monospace;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #0f0f0f;
-      font-family: 'Segoe UI', sans-serif;
-      gap: 24px;
+      gap: 28px;
       padding: 24px 16px 80px;
+      overflow-x: hidden;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
     }
 
     .counter-card {
+      position: relative;
+      z-index: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 20px;
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 24px;
-      padding: 36px 40px;
+      gap: 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 40px 44px;
       width: 100%;
       max-width: 340px;
-      transition: transform 0.1s;
+      overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s;
     }
 
+    /* Glow blob behind each card */
+    .counter-card::before {
+      content: '';
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      opacity: 0;
+      filter: blur(60px);
+      transition: opacity 0.4s;
+      pointer-events: none;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .card-1::before { background: var(--red); }
+    .card-2::before { background: var(--purple); }
+
+    .counter-card.flash::before { opacity: 0.15; animation: blobPulse 0.5s ease-out forwards; }
+
+    @keyframes blobPulse {
+      0%   { opacity: 0.25; transform: translate(-50%, -50%) scale(0.8); }
+      100% { opacity: 0;    transform: translate(-50%, -50%) scale(1.4); }
+    }
+
+    .card-1:hover { border-color: rgba(255,60,60,0.3); box-shadow: 0 0 40px rgba(255,60,60,0.08); }
+    .card-2:hover { border-color: rgba(155,93,229,0.3); box-shadow: 0 0 40px rgba(155,93,229,0.08); }
+
     .word {
-      font-size: 1.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 3px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.8rem;
+      letter-spacing: 6px;
+      line-height: 1;
+    }
+
+    .card-1 .word { color: var(--red); }
+    .card-2 .word { color: var(--purple); }
+
+    /* Count with flip animation */
+    .count-wrap {
+      position: relative;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 160px;
     }
 
     .count {
-      font-size: 5rem;
-      font-weight: 900;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 6rem;
       line-height: 1;
-      min-width: 3ch;
       text-align: center;
+      display: block;
       transition: color 0.2s;
     }
 
-    .count.pending {
-      opacity: 0.6;
+    .count.pending { opacity: 0.55; }
+
+    .card-1 .count { color: var(--red); }
+    .card-2 .count { color: var(--purple); }
+
+    /* Bump animation on increment */
+    @keyframes bump {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.18); }
+      70%  { transform: scale(0.96); }
+      100% { transform: scale(1); }
     }
 
+    .count.bump { animation: bump 0.35s cubic-bezier(.36,.07,.19,.97); }
+
+    /* +1 float particle */
+    .particle {
+      position: absolute;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      pointer-events: none;
+      opacity: 1;
+      animation: floatUp 0.7s ease-out forwards;
+      z-index: 10;
+    }
+
+    .card-1 .particle { color: var(--red); }
+    .card-2 .particle { color: var(--purple); }
+
+    @keyframes floatUp {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-60px) scale(0.7); }
+    }
+
+    /* Button */
     .btn {
-      padding: 18px 0;
+      position: relative;
+      padding: 16px 0;
       width: 100%;
-      font-size: 1.2rem;
-      font-weight: 600;
+      font-family: 'DM Mono', monospace;
+      font-size: 1rem;
+      font-weight: 500;
+      letter-spacing: 2px;
+      text-transform: uppercase;
       border: none;
       border-radius: 14px;
       cursor: pointer;
-      letter-spacing: 1px;
-      transition: transform 0.1s, filter 0.1s;
+      overflow: hidden;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+      transition: transform 0.12s, filter 0.12s;
     }
 
-    .btn:active {
-      transform: scale(0.95);
-      filter: brightness(0.8);
+    .btn:active { transform: scale(0.94); filter: brightness(0.8); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .card-1 .btn { background: var(--red); color: #fff; }
+    .card-2 .btn { background: var(--purple); color: #fff; }
+
+    /* Ripple */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      transform: scale(0);
+      animation: rippleAnim 0.5s linear;
+      pointer-events: none;
     }
 
-    .btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
+    @keyframes rippleAnim {
+      to { transform: scale(4); opacity: 0; }
     }
 
-    .card-1 .word, .card-1 .count { color: #ff6b6b; }
-    .card-1 .btn { background: #ff6b6b; color: #fff; }
-
-    .card-2 .word, .card-2 .count { color: #a78bfa; }
-    .card-2 .btn { background: #a78bfa; color: #fff; }
-
+    /* Status */
     .status {
       position: fixed;
-      top: 16px;
+      top: 14px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 0.8rem;
-      color: #555;
-      letter-spacing: 1px;
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      color: #333;
       white-space: nowrap;
+      z-index: 10;
+      transition: color 0.4s;
     }
+    .status.connected { color: #2a7a4a; }
+    .status.error     { color: #7a2a2a; }
 
-    .status.connected { color: #4ade80; }
-    .status.error { color: #f87171; }
-
+    /* Reset */
     .reset-btn {
       position: fixed;
-      bottom: 20px;
+      bottom: 28px;
       left: 50%;
       transform: translateX(-50%);
-      padding: 13px 36px;
-      background: #222;
-      color: #888;
-      border: 1px solid #444;
+      padding: 11px 30px;
+      background: transparent;
+      color: #2a2a2a;
+      border: 1px solid #1e1e1e;
       border-radius: 50px;
       cursor: pointer;
-      font-size: 0.95rem;
-      transition: background 0.2s, color 0.2s;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: color 0.2s, border-color 0.2s;
       -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
       white-space: nowrap;
+      z-index: 10;
     }
-    .reset-btn:active { background: #333; color: #fff; }
+    .reset-btn:hover, .reset-btn:active { color: #666; border-color: #444; }
+
+    /* Version */
+    .version {
+      position: fixed;
+      bottom: 7px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.6rem;
+      color: #1c1c1c;
+      letter-spacing: 2px;
+      z-index: 10;
+    }
 
     @media (min-width: 600px) {
       body { flex-direction: row; gap: 32px; padding: 24px; }
-      .counter-card { width: 260px; }
-      .counter-card:hover { transform: translateY(-4px); }
-      .reset-btn:hover { background: #333; color: #fff; }
+      .counter-card { width: 280px; }
+    }
+
+    /* Entry animation */
+    .counter-card {
+      animation: cardIn 0.5s cubic-bezier(.22,1,.36,1) both;
+    }
+    .card-1 { animation-delay: 0.05s; }
+    .card-2 { animation-delay: 0.15s; }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
 
-  <div class="status" id="status">⏳ Connecting...</div>
+  <div class="status" id="status">CONNECTING</div>
 
-  <div class="counter-card card-1">
+  <div class="counter-card card-1" id="card1">
     <div class="word">Kurba</div>
-    <div class="count" id="count1">—</div>
-    <button class="btn" id="btn1" onclick="increment('kurba', 'count1')" disabled>+ Increment</button>
+    <div class="count-wrap">
+      <span class="count" id="count1">—</span>
+    </div>
+    <button class="btn" id="btn1" onclick="increment('kurba', 'count1', 'card1')" disabled>+ Increment</button>
   </div>
 
-  <div class="counter-card card-2">
+  <div class="counter-card card-2" id="card2">
     <div class="word">Pizda</div>
-    <div class="count" id="count2">—</div>
-    <button class="btn" id="btn2" onclick="increment('pizda', 'count2')" disabled>+ Increment</button>
+    <div class="count-wrap">
+      <span class="count" id="count2">—</span>
+    </div>
+    <button class="btn" id="btn2" onclick="increment('pizda', 'count2', 'card2')" disabled>+ Increment</button>
   </div>
-
-  <div style="position:fixed;bottom:6px;left:50%;transform:translateX(-50%);font-size:0.65rem;color:#2a2a2a;letter-spacing:1px;white-space:nowrap;">v1.0.0</div>
 
   <button class="reset-btn" id="resetBtn" onclick="resetAll()" disabled>Reset all</button>
+  <div class="version">v1.0.0</div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -161,24 +299,60 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    const statusEl = document.getElementById('status');
-    const btn1 = document.getElementById('btn1');
-    const btn2 = document.getElementById('btn2');
-    const resetBtn = document.getElementById('resetBtn');
-
-    // Local optimistic values
-    const local = { kurba: 0, pizda: 0 };
-    const elMap = { kurba: document.getElementById('count1'), pizda: document.getElementById('count2') };
+    const statusEl  = document.getElementById('status');
+    const btn1      = document.getElementById('btn1');
+    const btn2      = document.getElementById('btn2');
+    const resetBtn  = document.getElementById('resetBtn');
+    const local     = { kurba: 0, pizda: 0 };
+    const elMap     = { kurba: document.getElementById('count1'), pizda: document.getElementById('count2') };
 
     function setReady() {
-      statusEl.textContent = '🟢 Live';
+      statusEl.textContent = 'LIVE';
       statusEl.className = 'status connected';
       btn1.disabled = false;
       btn2.disabled = false;
       resetBtn.disabled = false;
     }
 
-    // Real-time listener — only updates display if not pending
+    function triggerBump(el) {
+      el.classList.remove('bump');
+      void el.offsetWidth; // reflow
+      el.classList.add('bump');
+      el.addEventListener('animationend', () => el.classList.remove('bump'), { once: true });
+    }
+
+    function spawnParticle(cardId) {
+      const card = document.getElementById(cardId);
+      const wrap = card.querySelector('.count-wrap');
+      const p = document.createElement('span');
+      p.className = 'particle';
+      p.textContent = '+1';
+      p.style.top = '10px';
+      p.style.left = (Math.random() * 60 + 20) + '%';
+      wrap.appendChild(p);
+      p.addEventListener('animationend', () => p.remove());
+    }
+
+    function triggerFlash(cardId) {
+      const card = document.getElementById(cardId);
+      card.classList.remove('flash');
+      void card.offsetWidth;
+      card.classList.add('flash');
+      card.addEventListener('animationend', () => card.classList.remove('flash'), { once: true });
+    }
+
+    function addRipple(btn, e) {
+      const rect = btn.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      const x = (e.clientX || rect.left + rect.width / 2) - rect.left - size / 2;
+      const y = (e.clientY || rect.top + rect.height / 2) - rect.top - size / 2;
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
+      btn.appendChild(ripple);
+      ripple.addEventListener('animationend', () => ripple.remove());
+    }
+
     onSnapshot(doc(db, 'counters', 'kurba'), (snap) => {
       const val = snap.exists() ? snap.data().value : 0;
       local.kurba = val;
@@ -186,7 +360,7 @@
       elMap.kurba.classList.remove('pending');
       setReady();
     }, () => {
-      statusEl.textContent = '🔴 Offline';
+      statusEl.textContent = 'OFFLINE';
       statusEl.className = 'status error';
     });
 
@@ -198,13 +372,19 @@
       setReady();
     });
 
-    window.increment = async (name, elId) => {
+    window.increment = async (name, elId, cardId) => {
       const el = elMap[name];
+      const btn = name === 'kurba' ? btn1 : btn2;
 
-      // Optimistically update immediately
+      // Optimistic update
       local[name] += 1;
       el.textContent = local[name];
       el.classList.add('pending');
+
+      // Animations
+      triggerBump(el);
+      spawnParticle(cardId);
+      triggerFlash(cardId);
 
       try {
         const ref = doc(db, 'counters', name);
@@ -213,21 +393,22 @@
           const current = snap.exists() ? snap.data().value : 0;
           tx.set(ref, { value: current + 1 });
         });
-        // onSnapshot will confirm and remove 'pending'
       } catch (e) {
-        // Revert on failure
         local[name] -= 1;
         el.textContent = local[name];
         el.classList.remove('pending');
       }
     };
 
+    // Attach ripple to buttons
+    [btn1, btn2].forEach(btn => {
+      btn.addEventListener('pointerdown', (e) => addRipple(btn, e));
+    });
+
     window.resetAll = async () => {
       if (!confirm('Reset both counters for ALL users?')) return;
-      local.kurba = 0;
-      local.pizda = 0;
-      elMap.kurba.textContent = 0;
-      elMap.pizda.textContent = 0;
+      local.kurba = 0; local.pizda = 0;
+      elMap.kurba.textContent = 0; elMap.pizda.textContent = 0;
       await runTransaction(db, async (tx) => {
         tx.set(doc(db, 'counters', 'kurba'), { value: 0 });
         tx.set(doc(db, 'counters', 'pizda'), { value: 0 });
@@ -236,3 +417,4 @@
   </script>
 </body>
 </html>
+
